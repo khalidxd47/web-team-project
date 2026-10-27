@@ -1,98 +1,126 @@
 <?php
 /**
- * Event details page: loads ONE event by id using a prepared statement.
- * URL example: details.php?id=3
+ * Single product page: details.php?id=3
+ * Size selection, live stock counter and add-to-bag form.
  */
 require_once __DIR__ . '/config/db.php';
 
-// Accept only a positive integer id; anything else becomes false/null
+// Accept only a positive whole number as the id
 $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 
-$event = false;
+$product = null;
 if ($id) {
-    $stmt = $pdo->prepare('SELECT * FROM events WHERE id = :id');
+    $stmt = $pdo->prepare('SELECT * FROM products WHERE id = :id');
     $stmt->execute(['id' => $id]);
-    $event = $stmt->fetch();
+    $product = $stmt->fetch();
 }
 
-// Unknown id: send a real 404 status
-if (!$event) {
+if (!$product) {
     http_response_code(404);
-    $pageTitle = 'Event Not Found';
+    $pageTitle = 'Tee not found';
     require_once __DIR__ . '/includes/header.php';
-    echo '<section class="section text-center"><div class="container">
-            <h1>Event not found</h1>
-            <p style="margin: 1rem 0 2rem;">The event you are looking for does not exist or was removed.</p>
-            <a href="events.php" class="btn">Back to Events</a>
-          </div></section>';
+    echo '<section class="section"><div class="container empty">'
+       . '<h1 class="page-title">We couldn\'t find that tee</h1>'
+       . '<p>It may have sold out and been removed.</p>'
+       . '<a href="products.php" class="btn">Browse all tees</a></div></section>';
     require_once __DIR__ . '/includes/footer.php';
     exit;
 }
 
-// Up to 3 other events in the same category
-$stmt = $pdo->prepare('SELECT * FROM events WHERE category = :category AND id <> :id ORDER BY event_date LIMIT 3');
-$stmt->execute(['category' => $event['category'], 'id' => $event['id']]);
+$stock = (int) $product['stock'];
+$sizes = sizeList($product['size']);
+
+// "You might also like": other tees in the same category
+$stmt = $pdo->prepare('SELECT * FROM products WHERE category = :category AND id <> :id ORDER BY stock = 0, id LIMIT 4');
+$stmt->execute(['category' => $product['category'], 'id' => $product['id']]);
 $related = $stmt->fetchAll();
 
-$isUpcoming = $event['event_date'] >= date('Y-m-d');
-
-$pageTitle = $event['name'];
+$pageTitle = $product['title'];
 require_once __DIR__ . '/includes/header.php';
 ?>
 
-<section class="page-header">
-    <div class="container">
-        <h1><?= e($event['name']) ?></h1>
-        <p><?= e($event['category']) ?> &middot; <?= formatDate($event['event_date']) ?></p>
-    </div>
-</section>
-
 <section class="section">
-    <div class="container details">
-        <img class="details-img" src="<?= e($event['image_url']) ?>" alt="<?= e($event['name']) ?>">
+    <div class="container">
+        <a href="products.php?category=<?= urlencode($product['category']) ?>" class="btn-link back-link">Back to <?= e($product['category']) ?></a>
 
-        <div class="panel">
-            <span class="badge"><?= e($event['category']) ?></span>
-            <ul class="info-list">
-                <li><strong>Date</strong><?= formatDate($event['event_date']) ?></li>
-                <li><strong>Location</strong><?= e($event['location']) ?></li>
-                <li>
-                    <strong>Status</strong>
-                    <span style="color: <?= $isUpcoming ? 'var(--color-success)' : 'var(--color-text-muted)' ?>; font-weight: 600;">
-                        <?= $isUpcoming ? 'Upcoming' : 'Finished' ?>
-                    </span>
-                </li>
-            </ul>
-            <p style="margin-bottom: 1.5rem;"><?= nl2br(e($event['description'])) ?></p>
-            <?php if ($isUpcoming): ?>
-                <a href="contact.php?event=<?= urlencode($event['name']) ?>" class="btn">Register Interest</a>
-            <?php endif; ?>
-            <a href="events.php" class="btn" style="background: transparent; color: var(--color-primary);">&larr; All Events</a>
+        <div class="details">
+            <div class="details-media">
+                <img src="<?= e($product['image_url']) ?>" alt="<?= e($product['title']) ?>" width="600" height="600">
+            </div>
+
+            <div class="details-info">
+                <h1 class="page-title"><?= e($product['title']) ?></h1>
+                <p class="price price-lg"><?= price($product['price']) ?></p>
+                <p><?= e($product['description']) ?></p>
+
+                <form method="post" action="bag.php" class="buy-form">
+                    <input type="hidden" name="csrf" value="<?= e(csrfToken()) ?>">
+                    <input type="hidden" name="action" value="add">
+                    <input type="hidden" name="id" value="<?= (int) $product['id'] ?>">
+                    <input type="hidden" name="back" value="details.php?id=<?= (int) $product['id'] ?>">
+
+                    <fieldset class="size-picker">
+                        <legend>Size</legend>
+                        <div class="size-options">
+                            <?php foreach (SIZES as $s): ?>
+                                <?php $available = in_array($s, $sizes, true); ?>
+                                <label class="size-option">
+                                    <input type="radio" name="size" value="<?= $s ?>" required <?= $available && $stock > 0 ? '' : 'disabled' ?>>
+                                    <span><?= $s ?></span>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
+                    </fieldset>
+
+                    <!-- Stock counter: the +/- buttons can't go past what's in stock -->
+                    <div class="qty-row">
+                        <span id="qtyLabel">Quantity</span>
+                        <div class="stepper" role="group" aria-labelledby="qtyLabel">
+                            <button type="button" class="stepper-btn" data-step="-1" aria-label="Decrease quantity">&minus;</button>
+                            <input type="number" id="qty" name="qty" value="1" min="1" max="<?= max(1, min(10, $stock)) ?>" aria-label="Quantity">
+                            <button type="button" class="stepper-btn" data-step="1" aria-label="Increase quantity">+</button>
+                        </div>
+                        <span class="stock-note<?= $stock < LOW_STOCK ? ' low' : '' ?>" id="stockNote" data-stock="<?= $stock ?>"><?= stockLabel($stock) ?></span>
+                    </div>
+
+                    <button type="submit" class="btn btn-block" <?= $stock === 0 ? 'disabled' : '' ?>>
+                        <?= $stock === 0 ? 'Sold out' : 'Add to bag' ?>
+                    </button>
+                </form>
+
+                <table class="spec-table">
+                    <tr><th scope="row">Fit</th><td><?= e($product['category']) ?></td></tr>
+                    <tr><th scope="row">Sizes</th><td><?= e(implode(', ', $sizes)) ?></td></tr>
+                    <tr><th scope="row">Care</th><td>Wash cold inside out, hang dry</td></tr>
+                </table>
+            </div>
         </div>
     </div>
 </section>
 
 <?php if ($related): ?>
-<section class="section" style="padding-top: 0;">
+<section class="section section-tint">
     <div class="container">
-        <h2 class="section-title">More <?= e($event['category']) ?> Events</h2>
-        <p class="section-subtitle">You might also like</p>
-        <div class="card-grid">
-            <?php foreach ($related as $item): ?>
-                <article class="card">
-                    <div class="card-img">
-                        <img src="<?= e($item['image_url']) ?>" alt="<?= e($item['name']) ?>" loading="lazy">
-                    </div>
-                    <div class="card-body">
-                        <h3><?= e($item['name']) ?></h3>
-                        <div class="card-meta">&#128197; <?= formatDate($item['event_date']) ?></div>
-                        <a href="details.php?id=<?= (int) $item['id'] ?>" class="btn btn-sm">View Details</a>
-                    </div>
-                </article>
+        <h2>More <?= e($product['category']) ?> tees</h2>
+        <div class="product-grid">
+            <?php foreach ($related as $p): ?>
+                <?php include __DIR__ . '/includes/product-card.php'; ?>
             <?php endforeach; ?>
         </div>
     </div>
 </section>
+<?php include __DIR__ . '/includes/quick-add-modal.php'; ?>
 <?php endif; ?>
+
+<script>
+/* Quantity stepper: keep the value between 1 and the max allowed by stock */
+document.querySelectorAll('.stepper-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+        const input = document.getElementById('qty');
+        const next = Number(input.value) + Number(btn.dataset.step);
+        input.value = Math.min(Number(input.max), Math.max(1, next));
+    });
+});
+</script>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

@@ -1,102 +1,68 @@
 -- =====================================================================
--- Computer Science Club Website - Database Schema
--- Course: CS3810T Web Development - Umm Al-Qura University
---
--- Usage: import this file in phpMyAdmin, or run:
---   mysql -u root -p < schema.sql
+-- Store - T-shirt merch store database
+-- Import in phpMyAdmin or run: mysql -u root < schema.sql
 -- =====================================================================
 
--- Create the database with full Unicode support (utf8mb4 also covers Arabic text and emoji)
-CREATE DATABASE IF NOT EXISTS club_db
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS store_db
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
 
-USE club_db;
+USE store_db;
 
--- Drop the table first so the script can be re-run to reset the data
-DROP TABLE IF EXISTS events;
-
--- ---------------------------------------------------------------------
--- Table: events
--- Stores every club activity shown on events.php, details.php and dashboard.php
--- ---------------------------------------------------------------------
-CREATE TABLE events (
-  id          INT UNSIGNED  NOT NULL AUTO_INCREMENT,   -- unique key, generated automatically
-  name        VARCHAR(150)  NOT NULL,                  -- event title
-  description TEXT          NOT NULL,                  -- full description for the details page
-  category    VARCHAR(50)   NOT NULL,                  -- used for filtering and the card badge
-  event_date  DATE          NOT NULL,                  -- stored as YYYY-MM-DD for correct sorting
-  location    VARCHAR(150)  NOT NULL,                  -- building / hall / online
-  image_url   VARCHAR(255)  NOT NULL,                  -- path or URL of the cover image
-  PRIMARY KEY (id),
-  INDEX idx_category (category),                       -- speeds up category filters
-  INDEX idx_event_date (event_date)                    -- speeds up date ordering
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+DROP TABLE IF EXISTS products;
+DROP TABLE IF EXISTS users;
 
 -- ---------------------------------------------------------------------
--- Seed data: 16 events
+-- Users: passwords are stored as bcrypt hashes from password_hash()
 -- ---------------------------------------------------------------------
-INSERT INTO events (name, description, category, event_date, location, image_url) VALUES
-('Welcome Back Meetup',
- 'Kick off the new semester with the CS Club. Meet the board members, learn about this year''s activities, and find teammates for upcoming competitions.',
- 'Social', '2026-09-10', 'College of Computing - Main Hall', 'https://picsum.photos/seed/cs-welcome/800/500'),
+CREATE TABLE users (
+    id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name       VARCHAR(100) NOT NULL,
+    email      VARCHAR(150) NOT NULL,
+    password   VARCHAR(255) NOT NULL,
+    role       ENUM('admin', 'customer') NOT NULL DEFAULT 'customer',
+    created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_email (email)
+) ENGINE=InnoDB;
 
-('Intro to Git & GitHub Workshop',
- 'A hands-on session covering commits, branches, merging, and pull requests. Bring your laptop with Git installed.',
- 'Workshop', '2026-09-24', 'Lab 3, Building C', 'https://picsum.photos/seed/cs-git/800/500'),
+-- admin@store.com / admin123   and   customer@store.com / customer123
+INSERT INTO users (name, email, password, role) VALUES
+('Store Admin',   'admin@store.com',    '$2y$10$.DG5JMD0aJLMF1umt3UUN.BUhlmOLZcpUp8DChdjmrlvv/QY7EA9.', 'admin'),
+('Sara Customer', 'customer@store.com', '$2y$10$Sd/ZIbCy89J1CXLXebaoq.wrBLjSYepsKg0UAt.pE1rWNZSkcFupm', 'customer');
 
-('Python for Beginners Bootcamp',
- 'A three-day bootcamp that teaches Python fundamentals: variables, loops, functions, and file handling, ending with a mini project.',
- 'Bootcamp', '2026-10-05', 'Lab 1, Building C', 'https://picsum.photos/seed/cs-python/800/500'),
+-- ---------------------------------------------------------------------
+-- Products: "size" holds the available sizes as a comma list (S,M,L)
+-- so it can be filtered with FIND_IN_SET()
+-- ---------------------------------------------------------------------
+CREATE TABLE products (
+    id          INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+    title       VARCHAR(150)  NOT NULL,
+    description TEXT          NOT NULL,
+    category    VARCHAR(50)   NOT NULL,
+    size        VARCHAR(50)   NOT NULL,
+    price       DECIMAL(8, 2) NOT NULL,
+    stock       INT UNSIGNED  NOT NULL DEFAULT 0,
+    image_url   VARCHAR(255)  NOT NULL,
+    PRIMARY KEY (id),
+    KEY idx_category (category)
+) ENGINE=InnoDB;
 
-('Cybersecurity Awareness Seminar',
- 'Security experts explain phishing, password hygiene, and how to protect personal data online. Open to all university students.',
- 'Seminar', '2026-10-15', 'Auditorium A', 'https://picsum.photos/seed/cs-cyber/800/500'),
-
-('Responsive Web Design Workshop',
- 'Learn to build layouts that work on phones, tablets, and desktops using Flexbox, CSS Grid, and media queries.',
- 'Workshop', '2026-10-22', 'Lab 3, Building C', 'https://picsum.photos/seed/cs-webdesign/800/500'),
-
-('Problem Solving Contest - Round 1',
- 'An individual competitive programming contest with algorithmic problems of increasing difficulty. Top performers qualify for the regional ACPC team.',
- 'Competition', '2026-11-02', 'Lab 2, Building C', 'https://picsum.photos/seed/cs-contest1/800/500'),
-
-('AI & Machine Learning Talk',
- 'An introduction to how machine learning models are trained, with live demos of image classification and text generation.',
- 'Seminar', '2026-11-12', 'Auditorium B', 'https://picsum.photos/seed/cs-ai/800/500'),
-
-('48-Hour Hackathon: Smart Campus',
- 'Teams of 3-5 build solutions that improve life on campus. Prizes for the top three teams, with mentors available throughout the event.',
- 'Hackathon', '2026-11-26', 'College of Computing - Innovation Hub', 'https://picsum.photos/seed/cs-hackathon/800/500'),
-
-('SQL & Database Design Workshop',
- 'From ER diagrams to normalized tables: practice writing SELECT, JOIN, and GROUP BY queries on a real dataset.',
- 'Workshop', '2026-12-03', 'Lab 1, Building C', 'https://picsum.photos/seed/cs-sql/800/500'),
-
-('Career Day: Tech in Saudi Arabia',
- 'Meet recruiters and engineers from leading Saudi tech companies. Learn about internships, CV tips, and in-demand skills under Vision 2030.',
- 'Seminar', '2026-12-14', 'University Conference Center', 'https://picsum.photos/seed/cs-career/800/500'),
-
-('Problem Solving Contest - Round 2',
- 'The second qualification round for the ACPC team, featuring team-based problems on graphs, dynamic programming, and math.',
- 'Competition', '2027-01-11', 'Lab 2, Building C', 'https://picsum.photos/seed/cs-contest2/800/500'),
-
-('Mobile App Development Bootcamp',
- 'A week-long bootcamp on building cross-platform mobile apps, from UI design to publishing on the app store.',
- 'Bootcamp', '2027-01-25', 'Lab 4, Building C', 'https://picsum.photos/seed/cs-mobile/800/500'),
-
-('Linux Command Line Workshop',
- 'Navigate the terminal with confidence: file management, permissions, pipes, and basic shell scripting.',
- 'Workshop', '2027-02-08', 'Lab 3, Building C', 'https://picsum.photos/seed/cs-linux/800/500'),
-
-('Capture The Flag (CTF) Challenge',
- 'A beginner-friendly security competition with challenges in web exploitation, cryptography, and forensics. Solve puzzles to capture flags and earn points.',
- 'Competition', '2027-02-22', 'Online', 'https://picsum.photos/seed/cs-ctf/800/500'),
-
-('Graduation Projects Showcase',
- 'Senior students present their graduation projects to faculty and industry guests. Great inspiration for your own project ideas.',
- 'Social', '2027-03-15', 'College of Computing - Main Hall', 'https://picsum.photos/seed/cs-showcase/800/500'),
-
-('End of Year Club Gathering',
- 'Celebrate the year''s achievements, honor active members and competition winners, and hand over to the next club board.',
- 'Social', '2027-04-20', 'University Gardens', 'https://picsum.photos/seed/cs-gathering/800/500');
+INSERT INTO products (title, description, category, size, price, stock, image_url) VALUES
+('Overprint Logo Tee', 'Our signature mark printed twice, slightly off-register, in blue and fluoro pink water-based ink. 220 gsm combed cotton with a boxy fit.', 'Graphic', 'S,M,L,XL', 34.00, 42, 'assets/images/tee-white.svg'),
+('Night Shift Tee', 'A heavyweight black tee with a tonal back print that only shows in direct light. Ribbed collar that keeps its shape after washing.', 'Graphic', 'M,L,XL,XXL', 36.00, 18, 'assets/images/tee-black.svg'),
+('Daily Crew - Black', 'The everyday crew neck. Mid-weight 180 gsm cotton, regular fit, no branding on the front. Buy two.', 'Essentials', 'XS,S,M,L,XL,XXL', 22.00, 120, 'assets/images/tee-black.svg'),
+('Daily Crew - White', 'The same everyday crew in optic white. Tight knit, so it is not see-through, and pre-shrunk before cutting.', 'Essentials', 'XS,S,M,L,XL,XXL', 22.00, 96, 'assets/images/tee-white.svg'),
+('Daily Crew - Heather Grey', 'Soft heather grey blend of 90% cotton and 10% viscose. Drapes well and hides wrinkles after a long day.', 'Essentials', 'S,M,L,XL', 24.00, 7, 'assets/images/tee-grey.svg'),
+('Boxy Navy Oversized', 'Dropped shoulders, a cropped body and wide sleeves. 260 gsm heavyweight cotton in deep navy.', 'Oversized', 'S,M,L,XL', 39.00, 25, 'assets/images/tee-navy.svg'),
+('Olive Utility Oversized', 'Oversized cut with a hidden chest pocket and a garment-dyed olive finish. Every piece fades a little differently.', 'Oversized', 'M,L,XL', 42.00, 4, 'assets/images/tee-olive.svg'),
+('Sand Dune Oversized', 'Warm sand colour, double-stitched hems and a thick 2.5 cm neck rib. Pairs with everything in the drop.', 'Oversized', 'S,M,L,XL,XXL', 39.00, 31, 'assets/images/tee-sand.svg'),
+('Acid Wash Rust', 'Hand acid-washed in small batches, so no two are the same. Relaxed fit with a softened, broken-in feel.', 'Vintage Wash', 'S,M,L,XL', 45.00, 12, 'assets/images/tee-rust.svg'),
+('Faded Cobalt Tee', 'Stone-washed cobalt blue with a cracked print on the chest. Looks ten years old on day one.', 'Vintage Wash', 'S,M,L', 44.00, 0, 'assets/images/tee-blue.svg'),
+('Sun-Bleached Lilac', 'Pigment-dyed lilac, faded at the seams on purpose. Slightly cropped, regular sleeves.', 'Vintage Wash', 'XS,S,M,L', 44.00, 15, 'assets/images/tee-lilac.svg'),
+('Fluoro Pink Print Tee', 'Fluorescent pink with a blue screen-printed graphic on the back. Loud on purpose.', 'Graphic', 'S,M,L,XL', 35.00, 22, 'assets/images/tee-pink.svg'),
+('Street Map Graphic', 'Front print of an imaginary city grid in three overprinted inks. Printed by hand on our own press.', 'Graphic', 'M,L,XL', 38.00, 9, 'assets/images/tee-sand.svg'),
+('Long Sleeve Layer - White', 'A long-sleeve base layer with ribbed cuffs and a small sleeve print. Wear it alone or under an oversized tee.', 'Long Sleeve', 'S,M,L,XL', 40.00, 28, 'assets/images/tee-white.svg'),
+('Long Sleeve Layer - Black', 'Black long sleeve, 200 gsm cotton, thumb-friendly cuffs. The cold-evening favourite.', 'Long Sleeve', 'S,M,L,XL,XXL', 40.00, 3, 'assets/images/tee-black.svg'),
+('Cobalt Pocket Tee', 'Regular fit with a sewn chest pocket in contrast blue. Simple, sturdy and easy to wear.', 'Essentials', 'S,M,L,XL', 26.00, 54, 'assets/images/tee-blue.svg'),
+('Grey Marl Long Sleeve', 'Heavy marl long sleeve with a relaxed body and a printed hem tag. Built to be worn in.', 'Long Sleeve', 'M,L,XL', 42.00, 11, 'assets/images/tee-grey.svg');

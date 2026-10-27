@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="sand t-shirt">
+  <path d="M146 58 L100 74 L36 122 L70 178 L104 160 L104 352 L296 352 L296 160 L330 178 L364 122 L300 74 L254 58 Q200 98 146 58 Z" fill="#d9c7a3" stroke="#b39f78" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M146 58 Q200 98 254 58" fill="none" stroke="#b39f78" stroke-width="6" stroke-linecap="round"/>
+  <g style="mix-blend-mode:multiply" opacity="0.9">
+    <circle cx="192" cy="190" r="38" fill="#0078bf"/>
+    <circle cx="210" cy="198" r="38" fill="#ff48b0"/>
+  </g>
+</svg>

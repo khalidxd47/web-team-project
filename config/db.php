@@ -4,15 +4,17 @@
  *
  * Include this file in any page that needs the database:
  *     require_once __DIR__ . '/config/db.php';
- * It creates a ready-to-use $pdo object.
+ * It creates a ready-to-use $pdo object and starts the session
+ * (via functions.php) so every page knows who is logged in.
  */
+require_once __DIR__ . '/../includes/functions.php';
 
 // Connection settings (XAMPP/WAMP defaults: user "root", empty password)
 define('DB_HOST', 'localhost');
-define('DB_NAME', 'club_db');
+define('DB_NAME', 'store_db');
 define('DB_USER', 'root');
 define('DB_PASS', '');
-define('DB_CHARSET', 'utf8mb4'); // full Unicode, including Arabic text
+define('DB_CHARSET', 'utf8mb4'); // full Unicode
 
 // DSN (Data Source Name): tells PDO which driver, server, database and charset to use
 $dsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=' . DB_CHARSET;
@@ -38,7 +40,7 @@ try {
 /*
  * Example usage with a prepared statement (safe from SQL injection):
  *
- *     $stmt = $pdo->prepare('SELECT * FROM events WHERE id = :id');
+ *     $stmt = $pdo->prepare('SELECT * FROM products WHERE id = :id');
  *     $stmt->execute(['id' => $_GET['id']]);
- *     $event = $stmt->fetch();
+ *     $product = $stmt->fetch();
  */
